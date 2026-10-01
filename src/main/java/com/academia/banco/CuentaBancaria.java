@@ -2,7 +2,6 @@ package com.academia.banco;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -30,6 +29,8 @@ public class CuentaBancaria {
     private int retiros = 0;
     private final List<Movimiento> movimientos = new ArrayList<>();
 
+    private boolean cerrada = false;
+
     public CuentaBancaria(String titular) {
         if (titular == null || titular.isBlank()) {
             throw new IllegalArgumentException("El titular es obligatorio");
@@ -37,13 +38,27 @@ public class CuentaBancaria {
         this.titular = titular.strip();
     }
 
+    public void cerrar() {
+        verificarCuentaCerrada();
+        if (saldo.signum() > 0) {
+            throw new IllegalStateException("No puedes cerrar una cuenta con saldo: $" + saldo);
+        }
+        this.cerrada = true;
+    }
+
+    public void verificarCuentaCerrada() {
+        if (cerrada) throw new CuentaCerradaException(titular);
+    }
+
     public void depositar(BigDecimal monto) {
+        verificarCuentaCerrada();
         BigDecimal m = validarMonto(monto);
         saldo = saldo.add(m);
         movimientos.add(new Movimiento(TipoMovimiento.DEPOSITO, m));
     }
 
     public void retirar(BigDecimal monto) {
+        verificarCuentaCerrada();
         BigDecimal m = validarMonto(monto);
         if (m.compareTo(LIMITE_POR_RETIRO) > 0) {
             throw new LimiteExcedidoException(m, LIMITE_POR_RETIRO);
@@ -64,6 +79,7 @@ public class CuentaBancaria {
         if (destino == null) {
             throw new IllegalArgumentException("La cuenta destino es obligatoria");
         }
+        if (destino.estaCerrada()) throw new CuentaCerradaException(destino.titular);
         if (destino == this) {
             throw new IllegalArgumentException("No puedes transferirte a la misma cuenta");
         }
@@ -110,5 +126,9 @@ public class CuentaBancaria {
             throw new IllegalArgumentException("El monto no puede tener fracciones de centavo");
         }
         return monto.setScale(2);
+    }
+
+    public boolean estaCerrada() {
+        return cerrada;
     }
 }
